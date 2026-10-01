@@ -20,7 +20,7 @@ jobs:
 
       - name: Update calendar file
         run: |
-echo "Klaar voor echte planning"
+            echo "Klaar voor echte planning"
 
       - name: Commit calendar
         run: |

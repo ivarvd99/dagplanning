@@ -1,26 +1,51 @@
-name: Update calendar
-
-on:
-  workflow_dispatch:
-    inputs:
-      planning:
-        description: 'Planning'
-        required: true
-        type: string
-permissions:
-  contents: write
-
-jobs:
-  update-calendar:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Get repository
-        uses: actions/checkout@v4
-
       - name: Update calendar file
+        env:
+          PLANNING: ${{ inputs.planning }}
         run: |
-            echo "Klaar voor echte planning"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from datetime import datetime
+          import uuid
+
+          planning = os.environ["PLANNING"]
+
+          events = []
+
+          for line in planning.splitlines():
+              parts = [p.strip() for p in line.split("|")]
+
+              if len(parts) != 4:
+                  continue
+
+              title, date, start_time, end_time = parts
+
+              start = datetime.strptime(
+                  f"{date} {start_time}", "%Y-%m-%d %H:%M"
+              )
+              end = datetime.strptime(
+                  f"{date} {end_time}", "%Y-%m-%d %H:%M"
+              )
+
+              events.append(
+                  f"""BEGIN:VEVENT
+          UID:{uuid.uuid4()}@dagplanning
+          DTSTAMP:{datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")}
+          DTSTART:{start.strftime("%Y%m%dT%H%M%S")}
+          DTEND:{end.strftime("%Y%m%dT%H%M%S")}
+          SUMMARY:{title}
+          END:VEVENT"""
+              )
+
+          calendar = """BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//DAGPLANNING//NL
+          """ + "\n".join(events) + """
+          END:VCALENDAR
+          """
+
+          Path("Dagplanning.ics").write_text(calendar, encoding="utf-8")
+          PY
 
       - name: Commit calendar
         run: |

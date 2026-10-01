@@ -1,0 +1,54 @@
+name: Update calendar
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-calendar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository
+        uses: actions/checkout@v4
+
+      - name: Update calendar file
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timedelta
+
+          path = Path("Dagplanning.ics")
+
+          now = datetime.now()
+          start = now + timedelta(days=1)
+
+          ics = """BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Dagplanning//NL
+          BEGIN:VEVENT
+          UID:voorbeeld-1@dagplanning
+          DTSTAMP:{dtstamp}
+          DTSTART:{start}
+          DTEND:{end}
+          SUMMARY:Voorbeeld afspraak
+          END:VEVENT
+          END:VCALENDAR
+          """.format(
+              dtstamp=now.strftime("%Y%m%dT%H%M%S"),
+              start=start.replace(hour=9, minute=0, second=0).strftime("%Y%m%dT%H%M%S"),
+              end=start.replace(hour=10, minute=0, second=0).strftime("%Y%m%dT%H%M%S")
+          )
+
+          path.write_text(ics, encoding="utf-8")
+          PY
+
+      - name: Commit calendar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Dagplanning.ics
+          git diff --cached --quiet || git commit -m "Update calendar"
+          git push

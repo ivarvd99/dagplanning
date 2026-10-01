@@ -2,7 +2,11 @@ name: Update calendar
 
 on:
   workflow_dispatch:
-
+    inputs:
+      planning:
+        description: 'Planning'
+        required: true
+        type: string
 permissions:
   contents: write
 
@@ -16,7 +20,7 @@ jobs:
 
       - name: Update calendar file
         run: |
-echo "klaar voor echte planning"
+echo "Klaar voor echte planning"
 
       - name: Commit calendar
         run: |

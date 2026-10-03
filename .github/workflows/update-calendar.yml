@@ -9,31 +9,50 @@ on:
         type: string
 
   issues:
-    types: [opened]
+    types: [opened, closed]
 
 permissions:
   contents: write
+  issues: read
 
 jobs:
   update-calendar:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, 'Dagplanning')
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, 'Dagplanning')
+
     runs-on: ubuntu-latest
 
     steps:
       - name: Get repository
         uses: actions/checkout@v4
 
-      - name: Update calendar file
+      - name: Get all open planning issues
+        if: github.event_name == 'issues'
         env:
-          PLANNING: ${{ github.event_name == 'workflow_dispatch' && inputs.planning || github.event.issue.body }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list \
+            --state open \
+            --json title,body \
+            --jq '.[] | select(.title | startswith("Dagplanning")) | .body' \
+            > planning.txt
+
+      - name: Get manual planning
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PLANNING: ${{ inputs.planning }}
+        run: |
+          printf '%s\n' "$PLANNING" > planning.txt
+
+      - name: Update calendar file
         run: |
           python3 - <<'PY'
-          import os
           from pathlib import Path
           from datetime import datetime
           import uuid
 
-          planning = os.environ["PLANNING"]
+          planning = Path("planning.txt").read_text(encoding="utf-8")
           events = []
 
           for line in planning.splitlines():
@@ -44,12 +63,15 @@ jobs:
 
               title, date, start_time, end_time = parts
 
-              start = datetime.strptime(
-                  f"{date} {start_time}", "%Y-%m-%d %H:%M"
-              )
-              end = datetime.strptime(
-                  f"{date} {end_time}", "%Y-%m-%d %H:%M"
-              )
+              try:
+                  start = datetime.strptime(
+                      f"{date} {start_time}", "%Y-%m-%d %H:%M"
+                  )
+                  end = datetime.strptime(
+                      f"{date} {end_time}", "%Y-%m-%d %H:%M"
+                  )
+              except ValueError:
+                  continue
 
               events.append(
                   f"""BEGIN:VEVENT

@@ -8,11 +8,15 @@ on:
         required: true
         type: string
 
+  issues:
+    types: [opened]
+
 permissions:
   contents: write
 
 jobs:
   update-calendar:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, 'Dagplanning')
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +25,7 @@ jobs:
 
       - name: Update calendar file
         env:
-          PLANNING: ${{ inputs.planning }}
+          PLANNING: ${{ github.event_name == 'workflow_dispatch' && inputs.planning || github.event.issue.body }}
         run: |
           python3 - <<'PY'
           import os
@@ -30,7 +34,6 @@ jobs:
           import uuid
 
           planning = os.environ["PLANNING"]
-
           events = []
 
           for line in planning.splitlines():
